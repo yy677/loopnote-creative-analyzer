@@ -1,0 +1,1 @@
+# loopnote-creative-analyzer
