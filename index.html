@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Creative Performance Analyzer — NewForm × LoopNote</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+  .tag-win { background: #E1F5EE; color: #085041; }
+  .tag-avg { background: #FAEEDA; color: #633806; }
+  .tag-bad { background: #FCEBEB; color: #791F1F; }
+  .p0 { background: #FCEBEB; color: #791F1F; }
+  .p1 { background: #FAEEDA; color: #633806; }
+  .p2 { background: #E6F1FB; color: #0C447C; }
+  .over-cap { color: #A32D2D; font-weight: 500; }
+  .under-cap { color: #0F6E56; font-weight: 500; }
+  .mono { font-family: ui-monospace, "SF Mono", Menlo, Monaco, "Cascadia Mono", Consolas, monospace; }
+  input[type=range] { accent-color: #1a1a1a; }
+  details summary { cursor: pointer; list-style: none; }
+  details summary::-webkit-details-marker { display: none; }
+  details summary::after { content: "+"; float: right; font-size: 18px; line-height: 1; }
+  details[open] summary::after { content: "−"; }
+  .pattern-row { display: grid; grid-template-columns: 140px 1fr 90px 80px; gap: 12px; padding: 10px 0; border-bottom: 1px solid #f0f0f0; align-items: center; font-size: 13px; }
+  .pattern-row.header { color: #6b7280; font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid #e5e7eb; }
+  .pattern-row:last-child { border-bottom: none; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; font-weight: 500; color: #6b7280; border-bottom: 1px solid #e5e7eb; padding: 10px 8px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; }
+  td { padding: 12px 8px; border-bottom: 1px solid #f3f4f6; vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  .num { text-align: right; font-variant-numeric: tabular-nums; }
+  .badge { display: inline-block; font-size: 11px; padding: 3px 8px; border-radius: 4px; font-weight: 500; }
+  .btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; font-size: 13px; border-radius: 6px; border: 1px solid #d1d5db; background: white; cursor: pointer; transition: all 0.15s; }
+  .btn:hover { background: #f9fafb; border-color: #9ca3af; }
+  .btn-primary { background: #111827; color: white; border-color: #111827; }
+  .btn-primary:hover { background: #1f2937; border-color: #1f2937; }
+  textarea { width: 100%; min-height: 160px; font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; resize: vertical; }
+  textarea:focus, input:focus { outline: 2px solid #111827; outline-offset: -1px; border-color: transparent; }
+  input[type=number] { padding: 6px 10px; border: 1px solid #d1d5db; border-radius: 6px; width: 90px; font-size: 13px; }
+  .scrollable { overflow-x: auto; }
+  @media (max-width: 768px) {
+    .pattern-row { grid-template-columns: 100px 1fr 70px 60px; gap: 8px; font-size: 12px; }
+  }
+</style>
+</head>
+<body class="bg-stone-50 text-gray-900">
+
+<div class="max-w-6xl mx-auto px-4 md:px-8 py-8">
+
+  <header class="mb-10 pb-6 border-b border-gray-200">
+    <div class="flex items-center gap-2 text-xs text-gray-500 mb-2 tracking-wide uppercase">
+      <span>NewForm × LoopNote</span>
+      <span>•</span>
+      <span>Growth Intern Take-home, Path 1</span>
+    </div>
+    <h1 class="text-3xl font-medium mb-2">Creative performance analyzer</h1>
+    <p class="text-gray-600 text-base max-w-3xl">A scoring tool for paid social creative performance. Drop in a flat table of creatives, get a ranked scorecard, pattern breakdown by platform/length/format, and rule-based hypotheses for the next test cell.</p>
+    <p class="text-gray-500 text-sm mt-3 max-w-3xl">Built to help a growth team move from "10 rows of numbers" to "here's what to scale, kill, and test next" in under 60 seconds, without manual pivot tables.</p>
+  </header>
+
+  <section class="mb-10">
+    <div class="flex items-baseline justify-between mb-4">
+      <h2 class="text-lg font-medium">1. Inputs</h2>
+      <button id="reset-btn" class="btn">Reset to sample data</button>
+    </div>
+
+    <div class="bg-white border border-gray-200 rounded-lg p-6 space-y-5">
+
+      <div class="flex flex-wrap items-center gap-4">
+        <label for="cap-input" class="text-sm text-gray-700 font-medium min-w-[180px]">Target cost per paid start</label>
+        <div class="flex items-center gap-1">
+          <span class="text-sm text-gray-500">$</span>
+          <input type="number" id="cap-input" value="90" min="1" step="1">
+        </div>
+        <span class="text-xs text-gray-500">creatives above this are flagged over-CPA</span>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-4">
+        <label for="lf-weight" class="text-sm text-gray-700 font-medium min-w-[180px]">LF (conversion) weight</label>
+        <input type="range" id="lf-weight" min="0" max="100" step="5" value="70" class="flex-1 max-w-md">
+        <span class="text-sm font-medium tabular-nums" id="lf-weight-out">70%</span>
+        <span class="text-xs text-gray-500">MF gets remainder: <span id="mf-weight-out">30%</span></span>
+      </div>
+
+      <div>
+        <label class="text-sm text-gray-700 font-medium block mb-2">Raw data (CSV)</label>
+        <p class="text-xs text-gray-500 mb-2">Required headers: <code class="mono bg-gray-100 px-1 py-0.5 rounded text-[11px]">creative_id, platform, format, length, spend, thumbstop, hold_6s, ctr, trial_starts, paid_starts</code></p>
+        <textarea id="data-input" spellcheck="false"></textarea>
+        <div class="flex gap-2 mt-3">
+          <button id="run-btn" class="btn btn-primary">Analyze</button>
+          <button id="copy-md-btn" class="btn">Copy scorecard as Markdown</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="mb-10">
+    <h2 class="text-lg font-medium mb-4">2. Summary</h2>
+    <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
+      <div class="bg-white border border-gray-200 rounded-lg p-4">
+        <div class="text-xs text-gray-500 mb-1">Creatives scored</div>
+        <div class="text-2xl font-medium" id="m-total">—</div>
+      </div>
+      <div class="bg-white border border-gray-200 rounded-lg p-4">
+        <div class="text-xs text-gray-500 mb-1">Winning</div>
+        <div class="text-2xl font-medium" id="m-win" style="color:#0F6E56;">—</div>
+      </div>
+      <div class="bg-white border border-gray-200 rounded-lg p-4">
+        <div class="text-xs text-gray-500 mb-1">Inefficient</div>
+        <div class="text-2xl font-medium" id="m-bad" style="color:#A32D2D;">—</div>
+      </div>
+      <div class="bg-white border border-gray-200 rounded-lg p-4">
+        <div class="text-xs text-gray-500 mb-1">Blended CPA</div>
+        <div class="text-2xl font-medium" id="m-cpa">—</div>
+      </div>
+      <div class="bg-white border border-gray-200 rounded-lg p-4">
+        <div class="text-xs text-gray-500 mb-1">% spend on winners</div>
+        <div class="text-2xl font-medium" id="m-spend">—</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="mb-10">
+    <div class="flex items-baseline justify-between mb-4">
+      <h2 class="text-lg font-medium">3. Scorecard</h2>
+      <span class="text-xs text-gray-500">Sorted by overall score, descending</span>
+    </div>
+    <div class="bg-white border border-gray-200 rounded-lg overflow-hidden">
+      <div class="scrollable">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Platform</th>
+              <th>Format</th>
+              <th class="num">Length</th>
+              <th class="num">Spend</th>
+              <th class="num">CPA</th>
+              <th class="num">LF</th>
+              <th class="num">MF</th>
+              <th class="num">Overall</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="scorecard-body"></tbody>
+        </table>
+      </div>
+    </div>
+    <details class="mt-4">
+      <summary class="text-sm text-gray-600 hover:text-gray-900 font-medium">How the scoring works</summary>
+      <div class="mt-3 text-sm text-gray-600 space-y-2 bg-gray-50 border border-gray-200 rounded-lg p-4">
+        <p><strong class="text-gray-900">LF (lower-funnel, conversion efficiency)</strong> combines three min-max normalized signals: cost per paid start (50%, inverted so lower is better), paid starts volume (30%), trial starts volume (20%). CPA gets the highest weight because the campaign brief names CPA as the primary goal.</p>
+        <p><strong class="text-gray-900">MF (mid-funnel, engagement quality)</strong> combines CTR (40%, closest to intent), 6s hold rate (35%, closest to creative quality), and thumbstop rate (25%, lowest weight because it's most prone to being clickbait-driven).</p>
+        <p><strong class="text-gray-900">UF (upper-funnel, awareness)</strong> would normally include impressions, reach, brand search lift. Not in this dataset, so omitted from scoring (acknowledged, not faked).</p>
+        <p><strong class="text-gray-900">Overall</strong> = LF × weight + MF × (1 − weight). Default 70/30 because the brief optimizes for paid starts, but the weight is adjustable above for different campaign goals.</p>
+        <p><strong class="text-gray-900">Status thresholds</strong>: Winning ≥ 75, Average 55–74, Inefficient &lt; 55. These are heuristics, not hard cutoffs — use the score, not the label, when deciding scale-or-kill.</p>
+      </div>
+    </details>
+  </section>
+
+  <section class="mb-10">
+    <h2 class="text-lg font-medium mb-2">4. Pattern detection</h2>
+    <p class="text-sm text-gray-600 mb-4">Auto-grouped CPA by dimension. Lower group CPA = stronger pattern. Single-creative groups marked low-confidence.</p>
+
+    <div class="grid md:grid-cols-3 gap-4">
+      <div class="bg-white border border-gray-200 rounded-lg p-5">
+        <p class="text-sm font-medium mb-3">By platform</p>
+        <div id="pat-platform"></div>
+      </div>
+      <div class="bg-white border border-gray-200 rounded-lg p-5">
+        <p class="text-sm font-medium mb-3">By length bucket</p>
+        <div id="pat-length"></div>
+      </div>
+      <div class="bg-white border border-gray-200 rounded-lg p-5">
+        <p class="text-sm font-medium mb-3">By format / hook</p>
+        <div id="pat-format"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="mb-10">
+    <h2 class="text-lg font-medium mb-2">5. What to test next</h2>
+    <p class="text-sm text-gray-600 mb-4">Rule-based hypotheses derived from the scorecard. Each recommendation cites its trigger logic so a growth lead can verify it.</p>
+    <div class="bg-white border border-gray-200 rounded-lg p-5">
+      <div id="recs" class="space-y-5"></div>
+    </div>
+  </section>
+
+  <section class="mb-10">
+    <h2 class="text-lg font-medium mb-2">6. Counter-signals</h2>
+    <p class="text-sm text-gray-600 mb-4">Patterns that look obvious but the data does not support. Surfaced to prevent over-reading single metrics.</p>
+    <div class="bg-white border border-gray-200 rounded-lg p-5">
+      <div id="counter-signals" class="space-y-3"></div>
+    </div>
+  </section>
+
+  <section class="mb-10">
+    <h2 class="text-lg font-medium mb-4">7. Methodology and design choices</h2>
+    <div class="bg-white border border-gray-200 rounded-lg p-6 space-y-4 text-sm text-gray-700 leading-relaxed">
+
+      <div>
+        <p class="font-medium text-gray-900 mb-1">Why funnel-weighted scoring instead of a single CPA ranking?</p>
+        <p>A pure CPA sort would penalize creatives with strong engagement that simply haven't been scaled yet, and over-reward small-volume winners. Splitting LF (efficiency) and MF (engagement) lets the team separate "this creative converts" from "this creative resonates" — useful when triaging fatigue vs. funnel issues.</p>
+      </div>
+
+      <div>
+        <p class="font-medium text-gray-900 mb-1">Why min-max normalization?</p>
+        <p>The 10 creatives span vastly different scales (CPA from $62 to $333). Z-scores would be sensitive to the small sample and outliers. Min-max keeps every creative on a 0–1 comparable scale and is robust enough for a weekly creative review where the goal is ranking, not statistical inference.</p>
+      </div>
+
+      <div>
+        <p class="font-medium text-gray-900 mb-1">Why surface counter-signals?</p>
+        <p>Growth teams routinely scale the "highest CTR" or "highest thumbstop" creative and lose money. The counter-signals section explicitly checks for these traps — high engagement with bad downstream conversion, or low-spend creatives prematurely tagged as failures.</p>
+      </div>
+
+      <div>
+        <p class="font-medium text-gray-900 mb-1">What this tool does not do (yet)</p>
+        <p>No statistical significance testing (sample sizes here don't support it). No incrementality modeling. No creative-fatigue curve. No competitor data ingestion. These are the obvious v2 directions if this gets used in production.</p>
+      </div>
+
+      <div>
+        <p class="font-medium text-gray-900 mb-1">How AI was used</p>
+        <p>Claude (Anthropic) was used to scaffold the React/HTML structure, the scoring math implementation, and the rule-based recommendation logic. The funnel framework, weighting rationale, normalization choice, threshold definitions, and the counter-signal rules were specified by me. Time spent: roughly 3 hours including the upstream Excel/SQL pipeline this tool wraps.</p>
+      </div>
+
+    </div>
+  </section>
+
+  <footer class="text-center text-xs text-gray-400 py-8 border-t border-gray-200">
+    Built for NewForm Growth Intern take-home, by Yifan Yang. Sample data is fictional (LoopNote).
+  </footer>
+
+</div>
+
+<script>
+(function() {
+  const SAMPLE = `creative_id,platform,format,length,spend,thumbstop,hold_6s,ctr,trial_starts,paid_starts
+C01,Meta,UGC problem/solution,28,4800,36,24,1.7,267,59
+C02,Meta,Static screenshots,15,3200,25,,0.9,133,35
+C03,Meta,Founder talking head,35,2700,18,11,0.6,54,12
+C04,TikTok,Creator skit POV,23,5100,45,31,2.4,300,42
+C05,TikTok,Screen-record demo,21,4400,39,27,2.1,338,71
+C06,TikTok,AI avatar explainer,30,3000,22,15,0.8,64,9
+C07,YouTube Shorts,Before/after comparison,32,4700,38,22,1.3,235,63
+C08,YouTube Shorts,Tutorial,45,3900,33,29,1.1,112,13
+C09,Meta,Creator testimonial,26,5500,41,26,2.0,306,67
+C10,TikTok,Trend remix,18,3800,50,35,1.9,174,20`;
+
+  const $ = id => document.getElementById(id);
+  $('data-input').value = SAMPLE;
+
+  function parseCSV(text) {
+    const lines = text.trim().split('\n').filter(l => l.trim());
+    const headers = lines[0].split(',').map(h => h.trim());
+    return lines.slice(1).map(line => {
+      const cells = line.split(',').map(c => c.trim());
+      const row = {};
+      headers.forEach((h, i) => { row[h] = cells[i]; });
+      return {
+        creative_id: row.creative_id,
+        platform: row.platform,
+        format: row.format,
+        length: parseFloat(row.length) || 0,
+        spend: parseFloat(row.spend) || 0,
+        thumbstop: parseFloat(row.thumbstop) || 0,
+        hold_6s: row.hold_6s === '' || row.hold_6s === undefined ? null : parseFloat(row.hold_6s),
+        ctr: parseFloat(row.ctr) || 0,
+        trial_starts: parseFloat(row.trial_starts) || 0,
+        paid_starts: parseFloat(row.paid_starts) || 0
+      };
+    });
+  }
+
+  function lengthBucket(s) {
+    if (s < 20) return '<20s';
+    if (s < 30) return '20-30s';
+    if (s < 40) return '30-40s';
+    return '>=40s';
+  }
+
+  function score(rows, opts) {
+    rows.forEach(r => { r.cpa = r.paid_starts > 0 ? r.spend / r.paid_starts : Infinity; });
+
+    const getRange = key => {
+      const vals = rows.map(r => r[key]).filter(v => v !== null && isFinite(v));
+      return [Math.min(...vals), Math.max(...vals)];
+    };
+    const norm = (v, [mn, mx], invert) => {
+      if (v === null || !isFinite(v) || mx === mn) return 0;
+      return invert ? (mx - v) / (mx - mn) : (v - mn) / (mx - mn);
+    };
+
+    const cpaR = getRange('cpa');
+    const psR = getRange('paid_starts');
+    const tsR = getRange('trial_starts');
+    const ctrR = getRange('ctr');
+    const holdR = getRange('hold_6s');
+    const thumbR = getRange('thumbstop');
+
+    rows.forEach(r => {
+      const cpaS = norm(r.cpa, cpaR, true);
+      const psS = norm(r.paid_starts, psR, false);
+      const tsS = norm(r.trial_starts, tsR, false);
+      const ctrS = norm(r.ctr, ctrR, false);
+      const holdS = r.hold_6s === null ? 0 : norm(r.hold_6s, holdR, false);
+      const thumbS = norm(r.thumbstop, thumbR, false);
+
+      r.lf = (cpaS * 0.5 + psS * 0.3 + tsS * 0.2) * 100;
+      r.mf = (ctrS * 0.4 + holdS * 0.35 + thumbS * 0.25) * 100;
+      r.overall = r.lf * (opts.lfWeight / 100) + r.mf * (1 - opts.lfWeight / 100);
+      r.status = r.overall >= 75 ? 'Winning' : r.overall >= 55 ? 'Average' : 'Inefficient';
+      r.length_bucket = lengthBucket(r.length);
+      r.over_cap = r.cpa > opts.cap;
+    });
+
+    return rows.sort((a, b) => b.overall - a.overall);
+  }
+
+  function groupBy(rows, key) {
+    const map = {};
+    rows.forEach(r => {
+      if (!map[r[key]]) map[r[key]] = { items: [], spend: 0, paid: 0 };
+      map[r[key]].items.push(r);
+      map[r[key]].spend += r.spend;
+      map[r[key]].paid += r.paid_starts;
+    });
+    return Object.entries(map).map(([k, v]) => ({
+      label: k,
+      n: v.items.length,
+      cpa: v.paid > 0 ? v.spend / v.paid : Infinity,
+      winners: v.items.filter(i => i.status === 'Winning').length,
+      ids: v.items.map(i => i.creative_id)
+    })).sort((a, b) => a.cpa - b.cpa);
+  }
+
+  function fmt$(v) { return isFinite(v) ? '$' + Math.round(v).toLocaleString() : 'n/a'; }
+  function fmtPct(v) { return Math.round(v) + '%'; }
+
+  function renderScorecard(rows) {
+    const tbody = $('scorecard-body');
+    tbody.innerHTML = rows.map(r => `
+      <tr>
+        <td><strong>${r.creative_id}</strong></td>
+        <td>${r.platform}</td>
+        <td class="text-xs text-gray-600">${r.format}</td>
+        <td class="num text-xs text-gray-500">${r.length}s</td>
+        <td class="num text-xs text-gray-500">${fmt$(r.spend)}</td>
+        <td class="num ${r.over_cap ? 'over-cap' : 'under-cap'}">${fmt$(r.cpa)}</td>
+        <td class="num">${Math.round(r.lf)}</td>
+        <td class="num">${Math.round(r.mf)}</td>
+        <td class="num font-medium">${Math.round(r.overall)}</td>
+        <td><span class="badge ${r.status === 'Winning' ? 'tag-win' : r.status === 'Average' ? 'tag-avg' : 'tag-bad'}">${r.status}</span></td>
+      </tr>
+    `).join('');
+  }
+
+  function renderPattern(rows, dim, target) {
+    const groups = groupBy(rows, dim);
+    target.innerHTML = `
+      <div class="pattern-row header">
+        <div>Group</div><div>Creatives</div><div class="num">CPA</div><div class="num">Win</div>
+      </div>
+    ` + groups.map(g => `
+      <div class="pattern-row">
+        <div><strong>${g.label}</strong>${g.n === 1 ? ' <span class="text-xs text-gray-400">(n=1)</span>' : ''}</div>
+        <div class="text-xs text-gray-500">${g.ids.join(', ')}</div>
+        <div class="num ${isFinite(g.cpa) && g.cpa > 90 ? 'over-cap' : 'under-cap'}">${fmt$(g.cpa)}</div>
+        <div class="num text-gray-600">${g.winners}/${g.n}</div>
+      </div>
+    `).join('');
+  }
+
+  function renderSummary(rows) {
+    const total = rows.length;
+    const wins = rows.filter(r => r.status === 'Winning');
+    const bad = rows.filter(r => r.status === 'Inefficient');
+    const totalSpend = rows.reduce((s, r) => s + r.spend, 0);
+    const totalPaid = rows.reduce((s, r) => s + r.paid_starts, 0);
+    const winSpend = wins.reduce((s, r) => s + r.spend, 0);
+    $('m-total').textContent = total;
+    $('m-win').textContent = wins.length;
+    $('m-bad').textContent = bad.length;
+    $('m-cpa').textContent = fmt$(totalSpend / totalPaid);
+    $('m-spend').textContent = fmtPct((winSpend / totalSpend) * 100);
+  }
+
+  function generateRecs(rows, cap) {
+    const recs = [];
+    const winners = rows.filter(r => r.status === 'Winning');
+    const losers = rows.filter(r => r.status === 'Inefficient');
+
+    if (winners.length >= 2) {
+      const top2 = winners.slice(0, 2).map(r => `${r.creative_id} (${r.platform} ${r.format}, CPA ${fmt$(r.cpa)})`).join(' and ');
+      recs.push({
+        p: 'P0',
+        title: `Scale top performers and produce variant batches`,
+        body: `${top2} are clearing the $${cap} CPA target with the strongest funnel efficiency in the set. Brief 3 to 5 same-format variants for each (vary hook, opener, on-screen text) to defend against creative fatigue before scaling spend.`,
+        rule: 'Triggered: ≥2 Winning creatives with CPA below target.'
+      });
+    }
+
+    const platG = groupBy(rows, 'platform').filter(g => g.n >= 2);
+    const lenG = groupBy(rows, 'length_bucket').filter(g => g.n >= 2);
+    const bestPlat = platG[0];
+    const bestLen = lenG[0];
+
+    if (bestPlat && bestLen && isFinite(bestPlat.cpa) && bestPlat.cpa < cap) {
+      recs.push({
+        p: 'P1',
+        title: `Concentrate next test cell on ${bestPlat.label} × ${bestLen.label}`,
+        body: `${bestPlat.label} hit the lowest blended CPA at ${fmt$(bestPlat.cpa)} across ${bestPlat.n} creatives. ${bestLen.label} hit ${fmt$(bestLen.cpa)} across ${bestLen.n}. Launch the variant batch from P0 in this platform-length cell first before broadening.`,
+        rule: 'Triggered: best platform group has CPA below target and n≥2.'
+      });
+    }
+
+    const losersOverCap = losers.filter(r => r.over_cap);
+    if (losersOverCap.length >= 2) {
+      const ids = losersOverCap.slice(0, 3).map(r => r.creative_id).join(', ');
+      recs.push({
+        p: 'P0',
+        title: `Pause or reduce spend on inefficient creatives`,
+        body: `${ids} are all Inefficient with CPAs above target. Pause and reallocate budget to the P0 variant batch. Hold one in a small learn cell if there's a salvageable hypothesis (e.g., founder talking head may fit LinkedIn better than Meta).`,
+        rule: 'Triggered: ≥2 Inefficient creatives AND CPA above target.'
+      });
+    }
+
+    const highMfLowLf = rows.filter(r => r.mf >= 70 && r.lf < 55);
+    if (highMfLowLf.length >= 1) {
+      const ids = highMfLowLf.map(r => r.creative_id).join(', ');
+      recs.push({
+        p: 'P1',
+        title: `Diagnose funnel leakage on engagement-strong, conversion-weak creatives`,
+        body: `${ids} have strong upper-funnel engagement (MF ≥ 70) but weak downstream conversion. The leak is likely between click and paid start, not creative quality. Audit landing page alignment, post-click experience, and CTA match before killing.`,
+        rule: 'Triggered: ≥1 creative with MF ≥70 AND LF <55.'
+      });
+    }
+
+    const formatsUsed = [...new Set(rows.map(r => r.format))];
+    const platformsUsed = [...new Set(rows.map(r => r.platform))];
+    if (formatsUsed.length < 12) {
+      recs.push({
+        p: 'P2',
+        title: `Probe whitespace formats not yet in the mix`,
+        body: `Current mix covers ${formatsUsed.length} format families across ${platformsUsed.length} platforms. Test 2 untried angles such as quantified outcome creator testimonials, app store review proof, or pain-point montages. Budget cap at 15% of weekly spend until one clears the target CPA.`,
+        rule: 'Triggered: format diversity below 12 — whitespace likely exists.'
+      });
+    }
+
+    return recs;
+  }
+
+  function renderRecs(recs) {
+    $('recs').innerHTML = recs.map(r => `
+      <div class="border-l-2 border-gray-200 pl-4">
+        <div class="flex gap-2 items-center mb-1">
+          <span class="badge ${r.p === 'P0' ? 'p0' : r.p === 'P1' ? 'p1' : 'p2'}">${r.p}</span>
+          <strong class="text-sm">${r.title}</strong>
+        </div>
+        <p class="text-sm text-gray-700 leading-relaxed">${r.body}</p>
+        <p class="text-xs text-gray-400 mt-1.5 font-mono">${r.rule}</p>
+      </div>
+    `).join('');
+  }
+
+  function renderCounterSignals(rows) {
+    const signals = [];
+
+    const byThumb = [...rows].sort((a, b) => b.thumbstop - a.thumbstop);
+    const topThumb = byThumb[0];
+    if (topThumb && topThumb.over_cap) {
+      signals.push(`<strong>Highest thumbstop ≠ best creative.</strong> <span class="text-gray-600">${topThumb.creative_id} has the highest thumbstop rate (${topThumb.thumbstop}%) but a CPA of ${fmt$(topThumb.cpa)}, well above target. Hook strength alone does not predict conversion; upper-funnel metrics deserve light weight in scaling decisions.</span>`);
+    }
+
+    const lowSpendBad = rows.filter(r => r.status === 'Inefficient' && r.spend < 3500);
+    if (lowSpendBad.length >= 1) {
+      const ids = lowSpendBad.map(r => r.creative_id).join(', ');
+      signals.push(`<strong>Low spend may mask early underperformance.</strong> <span class="text-gray-600">${ids} got less budget than the winners (under $3,500). Some inefficiency may reflect undertesting, not the creative itself. Worth a small re-test before fully writing off.</span>`);
+    }
+
+    const conversionGap = rows.filter(r => r.trial_starts > 0 && (r.paid_starts / r.trial_starts) < 0.15 && r.trial_starts >= 100);
+    if (conversionGap.length >= 1) {
+      const ids = conversionGap.map(r => `${r.creative_id} (${Math.round(r.paid_starts/r.trial_starts*100)}%)`).join(', ');
+      signals.push(`<strong>Trial-to-paid conversion varies widely.</strong> <span class="text-gray-600">${ids} have trial-to-paid rates below 15%, vs. ~20%+ for top performers. The audience a creative attracts matters as much as the volume it drives. Creative theme may be pulling in low-intent users.</span>`);
+    }
+
+    const highEngLowPaid = rows.filter(r => r.thumbstop >= 40 && r.paid_starts < 30);
+    if (highEngLowPaid.length >= 1) {
+      const ids = highEngLowPaid.map(r => r.creative_id).join(', ');
+      signals.push(`<strong>Entertaining ≠ converting.</strong> <span class="text-gray-600">${ids} stop the scroll (thumbstop ≥ 40%) but drive limited paid starts. Likely a hook-payoff mismatch: the opening promises something the product does not directly deliver.</span>`);
+    }
+
+    if (signals.length === 0) {
+      signals.push(`<span class="text-gray-500">No counter-signals detected in this dataset.</span>`);
+    }
+
+    $('counter-signals').innerHTML = signals.map(s => `<p class="text-sm leading-relaxed">${s}</p>`).join('');
+  }
+
+  function exportMarkdown(rows) {
+    const header = '| ID | Platform | Format | CPA | LF | MF | Overall | Status |';
+    const sep = '|---|---|---|---:|---:|---:|---:|---|';
+    const body = rows.map(r => `| ${r.creative_id} | ${r.platform} | ${r.format} | ${fmt$(r.cpa)} | ${Math.round(r.lf)} | ${Math.round(r.mf)} | ${Math.round(r.overall)} | ${r.status} |`).join('\n');
+    return [header, sep, body].join('\n');
+  }
+
+  let currentRows = [];
+
+  function run() {
+    const text = $('data-input').value;
+    const cap = parseFloat($('cap-input').value) || 90;
+    const lfWeight = parseFloat($('lf-weight').value);
+    try {
+      const rows = parseCSV(text);
+      const scored = score(rows, { cap, lfWeight });
+      currentRows = scored;
+      renderSummary(scored);
+      renderScorecard(scored);
+      renderPattern(scored, 'platform', $('pat-platform'));
+      renderPattern(scored, 'length_bucket', $('pat-length'));
+      renderPattern(scored, 'format', $('pat-format'));
+      renderRecs(generateRecs(scored, cap));
+      renderCounterSignals(scored);
+    } catch (e) {
+      alert('Could not parse data. Check that CSV headers match the required schema.');
+    }
+  }
+
+  $('lf-weight').addEventListener('input', e => {
+    const v = parseInt(e.target.value);
+    $('lf-weight-out').textContent = v + '%';
+    $('mf-weight-out').textContent = (100 - v) + '%';
+    run();
+  });
+  $('cap-input').addEventListener('input', run);
+  $('run-btn').addEventListener('click', run);
+  $('reset-btn').addEventListener('click', () => { $('data-input').value = SAMPLE; run(); });
+  $('copy-md-btn').addEventListener('click', () => {
+    const md = exportMarkdown(currentRows);
+    navigator.clipboard.writeText(md).then(() => {
+      const btn = $('copy-md-btn');
+      const orig = btn.textContent;
+      btn.textContent = 'Copied!';
+      setTimeout(() => btn.textContent = orig, 1500);
+    });
+  });
+
+  run();
+})();
+</script>
+
+</body>
+</html>
